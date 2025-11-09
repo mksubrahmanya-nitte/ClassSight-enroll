@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Face Enrollment — Magic Circle</title>
+
+  <!-- Tailwind and MediaPipe -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+
+  <!-- External CSS -->
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="faceid-bg min-h-screen flex items-center justify-center p-6">
+  <div class="w-full max-w-xl rounded-lg p-6 text-center shadow-xl relative ui-shell">
+    <!-- Cancel (top-left) -->
+    <button id="cancel-btn" class="cancel-btn">Cancel</button>
+
+    <h1 class="title">Face Enrollment</h1>
+    <p id="instruction-text" class="instruction">Loading AI Model...</p>
+
+    <div class="stage" id="stage">
+      <div class="video-wrap">
+        <video id="video" autoplay muted playsinline></video>
+        <canvas id="circle_canvas"></canvas>
+        <div class="vignette"></div>
+      </div>
+    </div>
+
+    <canvas id="snap_canvas"></canvas>
+
+    <p class="caption">Captured Images</p>
+    <div id="photo-preview-bar" class="preview-bar flex justify-center gap-2 mt-2 h-16">
+        <!-- Previews will be added here -->
+    </div>
+
+    <div class="done-wrap">
+      <button id="done-btn" class="done-btn hidden">Done</button>
+    </div>
+  </div>
+
+  <!-- Firebase SDK -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+
+    const firebaseConfig = {
+      apiKey: "dfgdfgdfg",
+      authDomain: "c5345345am-fdgdfgdfgd34534fg-a4gdgdfgfgdfgdf43534588dfgdfgdfgdf1.fdfgdfirebaseapp.com",
+      projectId: "camsdfsdfs3453453ddfgdfgdfgfsdfsdfdfs-attsdfesdnsdfsdfsddance-a4881",
+      storageBucket: "rdrg-attensdandxcvcfse-a4881.ddffsfirsdfsdfebasestorage.app",
+      messagingSenderId: "4534er",
+      appId: "1:erw:dfgweb:9a8dddfdfb0adfg009f458fca2ab6",
+      measurementId: "G-dfgdfgdfg"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+
+    // ELEMENTS
+    const videoEl = document.getElementById('video');
+    const circleCanvas = document.getElementById('circle_canvas');
+    const snapCanvas = document.getElementById('snap_canvas');
+    const instr = document.getElementById('instruction-text');
+    const previewBar = document.getElementById('photo-preview-bar');
+    const cancelBtn = document.getElementById('cancel-btn');
+    const doneBtn = document.getElementById('done-btn');
+
+    const ctx = circleCanvas.getContext('2d', { alpha: true });
+    const snapCtx = snapCanvas.getContext('2d');
+
+    const captured = {};
+    let currentPose = null;
+    let lastSnapAt = 0;
+    const SNAP_COOLDOWN_MS = 900;
+    const poses = {
+      frontal: { label: 'Move your head slowly to complete the circle', captured: false },
+      left: { label: 'Look Left', captured: false },
+      right: { label: 'Look Right', captured: false },
+      up: { label: 'Look Up', captured: false },
+      down: { label: 'Look Down', captured: false }
+    };
+    const poseOrder = ['frontal','left','right','up','down'];
+
+    let cssW = 0, cssH = 0, dpr = window.devicePixelRatio || 1;
+    function resizeCanvas() {
+      const rect = circleCanvas.getBoundingClientRect();
+      if (!rect) return;
+      cssW = rect.width;
+      cssH = rect.height;
+      dpr = window.devicePixelRatio || 1;
+      circleCanvas.width = Math.round(cssW * dpr);
+      circleCanvas.height = Math.round(cssH * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+    window.addEventListener('resize', resizeCanvas);
+    requestAnimationFrame(resizeCanvas);
+
+    function draw(progressAngle = 0, showAnim = true) {
+      ctx.clearRect(0,0,cssW,cssH);
+      const cx = cssW/2, cy = cssH/2;
+      if (cx === 0 || cy === 0) return;
+      const radius = Math.min(cssW, cssH) * 0.42;
+
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius + 6, 0, Math.PI*2);
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+      ctx.stroke();
+
+      if (progressAngle > 0) {
+        ctx.beginPath();
+        ctx.arc(cx, cy, radius, -Math.PI/2, -Math.PI/2 + progressAngle, false);
+        ctx.lineWidth = 6;
+        ctx.strokeStyle = '#32ff85';
+        ctx.shadowBlur = 6;
+        ctx.shadowColor = 'rgba(50,255,133,0.8)';
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+      } else {
+        ctx.beginPath();
+        ctx.arc(cx, cy, radius, -Math.PI/2, Math.PI*3/2);
+        ctx.lineWidth = 6;
+        ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+        ctx.stroke();
+      }
+
+      ctx.save();
+      ctx.fillStyle = 'rgba(0,0,0,0.6)';
+      ctx.fillRect(0,0,cssW,cssH);
+      ctx.globalCompositeOperation = 'destination-out';
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius * 0.96, 0, Math.PI*2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    let lastAnimTime = performance.now();
+    function loop(now) {
+      const progress = (Object.keys(captured).length / poseOrder.length) * Math.PI * 2;
+      draw(progress, currentPose !== 'DONE');
+      requestAnimationFrame(loop);
+    }
+    requestAnimationFrame(loop);
+
+    function snap(poseName) {
+      if (!videoEl.videoWidth || !videoEl.videoHeight) return;
+      if (poses[poseName].captured) return;
+      const now = Date.now();
+      if (now - lastSnapAt < SNAP_COOLDOWN_MS) return;
+      lastSnapAt = now;
+
+      poses[poseName].captured = true;
+      const vW = videoEl.videoWidth, vH = videoEl.videoHeight;
+      snapCanvas.width = vW;
+      snapCanvas.height = vH;
+      snapCtx.save();
+      snapCtx.translate(vW,0);
+      snapCtx.scale(-1,1);
+      snapCtx.drawImage(videoEl,0,0,vW,vH);
+      snapCtx.restore();
+
+      const dataUrl = snapCanvas.toDataURL('image/jpeg',0.9);
+      captured[poseName]=dataUrl;
+      const img = document.createElement('img');
+      img.src=dataUrl;
+      img.className = 'preview-thumb';
+      previewBar.appendChild(img);
+
+      instr.textContent="Captured ✔";
+      setTimeout(()=>{
+        let next=null;
+        for(const p of poseOrder) if(!poses[p].captured){ next=p; break;}
+        if(next){ currentPose=next; instr.textContent=poses[currentPose].label; }
+        else {
+          currentPose='DONE';
+          instr.textContent='Enrollment Complete';
+          stopCamera();
+          doneBtn.classList.remove('hidden');
+        }
+      },700);
+    }
+
+    function detectPoseFromLandmarks(lm) {
+      if (!lm || lm.length === 0) return null;
+      const leftEye = lm[130], rightEye = lm[359], forehead = lm[10], chin = lm[152];
+      const yaw = leftEye.z - rightEye.z;
+      const pitch = forehead.z - chin.z;
+      const YAW_THRESHOLD = 0.035, PITCH_THRESHOLD = 0.035;
+
+      if (yaw > YAW_THRESHOLD * 1.5) return 'right';
+      if (yaw < -YAW_THRESHOLD * 1.5) return 'left';
+      if (pitch > PITCH_THRESHOLD * 1.2) return 'up';
+      if (pitch < -PITCH_THRESHOLD * 1.2) return 'down';
+      if (Math.abs(yaw) < 0.02 && Math.abs(pitch) < 0.02) return 'frontal';
+      return null;
+    }
+
+    const faceMesh=new FaceMesh({
+      locateFile:(file)=>`https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
+    });
+    faceMesh.setOptions({
+      maxNumFaces:1, refineLandmarks:true,
+      minDetectionConfidence:0.5, minTrackingConfidence:0.5
+    });
+
+    faceMesh.onResults((res)=>{
+      if(!res.multiFaceLandmarks||res.multiFaceLandmarks.length===0) {
+        if (currentPose !== 'DONE' && currentPose !== 'frontal') {
+          instr.textContent = "Face not detected. Please look straight.";
+        }
+        return;
+      }
+      if(currentPose==='DONE') return;
+      const lm=res.multiFaceLandmarks[0];
+      const detected=detectPoseFromLandmarks(lm);
+      if(!currentPose){
+        currentPose='frontal';
+        instr.textContent=poses[currentPose].label;
+      }
+      if(detected===currentPose && !poses[currentPose].captured) snap(currentPose);
+    });
+
+    let camera=null;
+    async function startCamera(){
+      try{
+        camera=new Camera(videoEl,{
+          onFrame:async()=>{await faceMesh.send({image:videoEl});},
+          width:480,height:480
+        });
+        await camera.start();
+        currentPose='frontal';
+        instr.textContent=poses[currentPose].label;
+        resizeCanvas();
+      }catch(e){ instr.textContent='Camera error: ' + e.message; }
+    }
+
+    function stopCamera(){
+      try{
+        if(camera&&camera.stop) camera.stop();
+        if(videoEl.srcObject){
+          const s=videoEl.srcObject;
+          if(s.getTracks) s.getTracks().forEach(t=>t.stop());
+          videoEl.srcObject=null;
+        }
+      }catch(e){}
+    }
+
+    cancelBtn.addEventListener('click', () => {
+      stopCamera();
+      instr.textContent = 'Enrollment cancelled';
+    });
+
+    // ✅ UPDATED DONE BUTTON LOGIC
+    doneBtn.addEventListener('click', async () => {
+      instr.textContent = 'Uploading...';
+
+      try {
+        const user = auth.currentUser;
+        if (!user) {
+          instr.textContent = 'Not logged in.';
+          return;
+        }
+
+        const token = await user.getIdToken();
+
+        const res = await fetch('http://127.0.0.1:5000/enroll', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + token
+          },
+          body: JSON.stringify({ images: Object.values(captured) })
+        });
+
+        const result = await res.json();
+        if (result.status === 'success') {
+          instr.textContent = '✅ Enrollment uploaded successfully!';
+        } else {
+          instr.textContent = '❌ Upload failed: ' + result.message;
+        }
+      } catch (err) {
+        instr.textContent = '❌ Error: ' + err.message;
+      }
+    });
+
+    startCamera();
+  </script>
+</body>
+</html>
