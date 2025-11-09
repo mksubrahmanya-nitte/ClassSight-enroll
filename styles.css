@@ -1,0 +1,203 @@
+/* ----------------------------
+   ATTENDANCE ENROLLMENT THEME
+   ---------------------------- */
+
+/* Import Inter font */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+/* Global reset */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* Body: light neutral academic look */
+.faceid-bg {
+  background: #f4f7fb; /* light neutral tone */
+  color: #1f2937;
+  font-family: 'Inter', system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+/* Container shell */
+.ui-shell {
+  max-width: 700px;
+  width: 100%;
+  background: #ffffff;
+  border: 1px solid #e0e6ef;
+  border-radius: 16px;
+  padding: 32px 28px;
+  position: relative;
+  box-shadow: 0 6px 24px rgba(0,0,0,0.06);
+}
+
+/* Title */
+.title {
+  font-size: 24px;
+  font-weight: 700;
+  color: #003366; /* NIT/college-style deep blue */
+  margin-bottom: 8px;
+}
+
+/* Instruction text */
+.instruction {
+  font-size: 16px;
+  color: #2563eb; /* blue accent */
+  font-weight: 500;
+  margin-bottom: 20px;
+  min-height: 24px;
+}
+
+/* Stage: circular video area centered */
+.stage {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  max-width: 420px;
+  margin: 0 auto;
+  aspect-ratio: 1 / 1;
+  position: relative;
+  background: #f0f4fa;
+  border-radius: 50%;
+  border: 4px solid #93c5fd; /* light blue border */
+  box-shadow: 0 0 12px rgba(37, 99, 235, 0.2);
+}
+
+/* Video container */
+.video-wrap {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  overflow: hidden;
+}
+
+/* Live video */
+video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scaleX(-1);
+  border-radius: 50%;
+  background: #cfe2f3;
+}
+
+/* Canvas overlay */
+#circle_canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+/* Snap canvas (hidden) */
+#snap_canvas {
+  display: none;
+}
+
+/* Captured images caption */
+.caption {
+  color: #374151;
+  font-size: 14px;
+  font-weight: 500;
+  margin-top: 18px;
+}
+
+/* Preview bar */
+.preview-bar {
+  margin-top: 10px;
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+/* Each captured photo */
+.preview-thumb {
+  width: 56px;
+  height: 72px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 2px solid #c7d2fe;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.preview-thumb:hover {
+  transform: scale(1.05);
+  border-color: #2563eb;
+}
+
+/* Cancel button */
+.cancel-btn {
+  position: absolute;
+  top: 16px;
+  left: 20px;
+  background: transparent;
+  border: none;
+  color: #2563eb;
+  font-weight: 500;
+  font-size: 15px;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.cancel-btn:hover {
+  color: #1e40af;
+}
+
+/* Done button (for after completion) */
+.done-wrap {
+  margin-top: 24px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.done-btn {
+  background: #2563eb;
+  color: #fff;
+  border: none;
+  font-weight: 600;
+  padding: 10px 36px;
+  border-radius: 8px;
+  font-size: 15px;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 3px 10px rgba(37, 99, 235, 0.3);
+}
+
+.done-btn:hover {
+  background: #1d4ed8;
+  transform: translateY(-2px);
+  box-shadow: 0 5px 14px rgba(37, 99, 235, 0.4);
+}
+
+.hidden { display: none !important; }
+
+/* Optional vignette fade removed for clarity */
+.vignette { display: none; }
+
+/* Responsive tweaks */
+@media (max-width: 480px) {
+  .ui-shell {
+    padding: 22px 18px;
+  }
+  .title {
+    font-size: 20px;
+  }
+  .instruction {
+    font-size: 14px;
+  }
+  .preview-thumb {
+    width: 48px;
+    height: 64px;
+  }
+  .done-btn {
+    padding: 8px 28px;
+    font-size: 14px;
+  }
+}
